@@ -1,0 +1,109 @@
+# ============================================================
+# 边缘端交通语义场景图 - 默认配置
+# ============================================================
+
+# ---- 数据配置 ----
+data:
+  csv_path: "data/sample/detections.csv"
+  num_classes: 5                # 类别数 (car, truck, bus, pedestrian, cyclist)
+  class_names: ["car", "truck", "bus", "pedestrian", "cyclist"]
+  frame_width: 1920             # 原始帧宽度 (用于坐标归一化)
+  frame_height: 1080            # 原始帧高度
+
+# ---- 节点特征配置 ----
+node_feature:
+  # [类别One-Hot(5) + 归一化坐标(2) + bbox宽高(2) + 速度矢量(2) + is_zone(1)] = 12
+  input_dim: 12
+
+# ---- 建图配置 ----
+graph:
+  kalman_predict_steps: 5       # 卡尔曼外推步数 (~1-2秒)
+  iou_threshold: 0.0            # IoU > 0 即建边
+  distance_threshold: 15.0      # BEV 距离阈值 (米)
+
+# ---- BEV 鸟瞰变换 ----
+bev:
+  calibration_file: "configs/bev_calibration.json"
+  dair_dataset_root: null       # 设置此项后从 DAIR-V2X 标定自动推导
+  ground_z: -1.0                # 地面高度 (lidar 坐标系, 米)
+  use_default_if_missing: true  # 无标定文件时使用默认估算
+
+# ---- 环境区域 ----
+zone:
+  grid_rows: 3
+  grid_cols: 3
+  bev_range: [0.0, 0.0, 200.0, 200.0]  # BEV 空间范围 (米)
+
+# ---- 模型配置 ----
+model:
+  # Edge Transformer Encoder
+  edge_input_dim: 28            # 2 * node_feature(12) + relative_motion(4) = 28
+  edge_hidden_dim: 64           # Transformer 隐层维度
+  relation_dim: 32              # 输出关系向量维度
+  num_heads: 4                  # 多头注意力头数
+  num_transformer_layers: 2     # Transformer 层数
+  dropout: 0.1
+
+  # 演化门控残差
+  gate_hidden_dim: 16           # 门控全连接层隐层
+  relative_motion_dim: 4        # [Δx, Δy, Δvx, Δvy]
+
+# ---- 关系分类头 ----
+classifier:
+  num_classes: 8
+  class_names:
+    - "independent"
+    - "following"
+    - "parallel"
+    - "approaching"
+    - "crossing"
+    - "in_zone"
+    - "entering_zone"
+    - "leaving_zone"
+  hidden_dim: 64
+
+# ---- 伪标签 & 运动学规则 (BEV 空间) ----
+relation_labeler:
+  cos_sim_threshold: 0.7
+  crossing_cos_threshold: -0.3
+  closing_rate_threshold: 2.0   # 米/帧
+  distance_near: 15.0           # 米
+  following_lateral_threshold: 3.0  # 米
+
+# ---- 训练配置 ----
+training:
+  epochs: 100
+  batch_size: 16                # 每个 batch 包含的帧数
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  lr_scheduler: "cosine"        # cosine / step
+  warmup_epochs: 5
+
+  # 对比学习
+  contrastive:
+    temperature: 0.07           # InfoNCE 温度系数
+    positive_window: 3          # 正样本时间窗口 (±3帧)
+    num_negatives: 5            # 负样本数量
+    perturbation_scale: 3.0     # 速度扰动缩放倍数
+
+  # 分类损失
+  classification_alpha: 0.5     # 分类损失初始权重
+  label_smoothing: 0.1
+
+  # 自训练
+  self_training:
+    stage1_ratio: 0.3           # Stage 1 占总 epoch 比例
+    stage2_ratio: 0.4           # Stage 2 占总 epoch 比例
+    confidence_threshold: 0.85  # Stage 2 置信度阈值
+    stage3_confidence: 0.7      # Stage 3 置信度阈值
+
+  # 检查点
+  checkpoint_dir: "checkpoints"
+  save_every: 10                # 每 N 个 epoch 保存一次
+  log_dir: "logs"
+
+# ---- 推理配置 ----
+inference:
+  checkpoint_path: "checkpoints/best_model.pt"
+  output_dir: "outputs"
+

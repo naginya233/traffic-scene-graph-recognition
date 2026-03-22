@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Environments
+.env
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Data & Outputs
+checkpoints/
+logs/
+outputs/
+dair_data/
+data/
+pipeline_output/
+*.pt
+*.pth
+*.zip
+*.tar.gz
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db

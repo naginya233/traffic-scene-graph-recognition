@@ -1,0 +1,7 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.8, pytest-8.4.2, pluggy-1.5.0 -- C:\Users\nagi\miniforge3\python.exe
+cachedir: .pytest_cache
+rootdir: d:\Research\Project1
+configfile: pyproject.toml
+plugins: anyio-4.11.0
+collecting ... 

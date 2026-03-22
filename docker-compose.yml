@@ -1,0 +1,80 @@
+services:
+  # ---- 训练服务 ----
+  train:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tsg-train
+    volumes:
+      - ./data:/app/data
+      - ./configs:/app/configs
+      - ./checkpoints:/app/checkpoints
+      - ./logs:/app/logs
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    command: ["python", "scripts/train.py", "--config", "configs/default.yaml"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # ---- 推理服务 ----
+  inference:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tsg-inference
+    volumes:
+      - ./data:/app/data
+      - ./configs:/app/configs
+      - ./checkpoints:/app/checkpoints
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    command: ["python", "scripts/inference.py", "--config", "configs/default.yaml"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # ---- 测试服务 ----
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tsg-test
+    volumes:
+      - ./data:/app/data
+      - ./configs:/app/configs
+    command: ["pytest", "tests/", "-v", "--tb=short"]
+
+  # ---- 自动化全流程管道 ----
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tsg-pipeline
+    shm_size: '8gb'      # 提升共享内存，防止 DataLoader 多核读取时崩溃
+    ipc: host
+    volumes:
+      - .:/app    # 挂载整个项目目录以热更新脚本
+      - ./data:/app/data
+      - ./configs:/app/configs
+      - ./checkpoints:/app/checkpoints
+      - ./pipeline_output:/app/pipeline_output
+      - D:/DataSet/Dair-V2X/I:/app/dair_data   # 挂载宿主机的 DAIR 数据集到容器
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    command: ["python", "scripts/dair_pipeline.py", "--dair_root", "/app/dair_data", "--output_dir", "pipeline_output"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
